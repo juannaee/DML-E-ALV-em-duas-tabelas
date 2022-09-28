@@ -1,0 +1,189 @@
+REPORT zhr_cadastro_alunos16.
+
+*Campos da tabela:
+* Nome da tabela : ZHR002_16
+*ZZ_CD  Codigo da matricula.
+*ZZ_NOME_AL Nome Aluno.
+*ZZ_SERIE_AL Serie Aluno.
+*ZZ_STATUS_AL Status Ativo ou Inativo Aluno.
+*ZZ_DATA_MATRI  Data de matricula.
+*ZZ_SEXO_AL   Sexo do Aluno.
+*
+*Campos da segunda tabela:
+*Nome da tabela : ZHR002_2_16
+*
+*ZZ_CD       Codigo da matricula.
+*ZZ_ED       ENDEREÇO
+*ZZ_EMAIL_AL EMAIL:
+*ZZ_TEL_AL   TELEFONE:
+*
+*
+*
+
+DATA:
+  t_out   TYPE TABLE OF zhr002_16,
+  wa_out  LIKE LINE OF t_out,
+
+  t_out2  TYPE TABLE OF zhr002_2_16,
+  wa_out2 LIKE LINE OF t_out2.
+
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+
+PARAMETERS: p_cd    TYPE zhr002_16-zz_cd  OBLIGATORY MATCHCODE OBJECT zhp_cd_16,
+            p_nome  TYPE zhr002_16-zz_nome_al,
+            p_serie TYPE zhr002_16-zz_serie_al,
+            p_sttal TYPE zhr002_16-zz_status_al,
+            p_dtmt  TYPE zhr002_16-zz_data_matri,
+            p_sexal TYPE zhr002_16-zz_sexo_al.
+
+
+
+SELECTION-SCREEN END OF BLOCK b1.
+
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-002.
+
+PARAMETERS:
+  p_cdi TYPE zhr002_2_16-zz_cd  NO-DISPLAY,
+  p_ed  TYPE zhr002_2_16-zz_ed,
+  p_em  TYPE zhr002_2_16-zz_email_al,
+  p_tel TYPE zhr002_2_16-zz_tel_al.
+
+
+SELECTION-SCREEN END OF BLOCK b2.
+
+
+
+
+INITIALIZATION.
+
+AT SELECTION-SCREEN OUTPUT.
+
+  p_cdi = p_cd.
+
+
+  IF p_cd IS NOT INITIAL AND p_cd NE wa_out-zz_cd
+                         AND p_cdi NE wa_out2-zz_cd.
+
+    wa_out-zz_cd = p_cd.
+
+
+    SELECT SINGLE
+                   zz_cd
+                   zz_nome_al
+                   zz_serie_al
+                   zz_status_al
+                   zz_data_matri
+                   zz_sexo_al
+
+      INTO ( p_cd,p_nome, p_serie,p_sttal, p_dtmt,p_sexal )
+      FROM  zhr002_16
+      WHERE zz_cd EQ p_cd.
+
+
+
+    IF sy-subrc IS NOT INITIAL.
+      CLEAR:
+       p_nome,
+       p_serie,
+       p_sttal,
+       p_dtmt,
+       p_sexal.
+
+
+    ENDIF.
+
+
+  ENDIF.
+
+
+  IF p_cdi IS NOT INITIAL AND p_cdi NE wa_out2-zz_cd.
+
+  wa_out2-zz_cd = p_cdi.
+
+    SELECT SINGLE
+                  zz_cd
+                  zz_ed
+                  zz_email_al
+                  zz_tel_al
+      INTO (  p_cdi,p_ed,p_em,p_tel )
+      FROM  zhr002_2_16
+      WHERE zz_cd EQ p_cdi.
+
+
+    IF sy-subrc IS NOT INITIAL.
+
+      CLEAR:
+
+       p_ed,
+       p_em,
+       p_tel.
+
+
+    ENDIF.
+
+  ENDIF.
+
+
+START-OF-SELECTION.
+  CLEAR: wa_out , wa_out2.
+
+
+  wa_out-zz_cd          =   p_cd.
+  wa_out-zz_data_matri  =   p_dtmt.
+  wa_out-zz_nome_al     =   p_nome.
+  wa_out-zz_serie_al    =   p_serie.
+  wa_out-zz_sexo_al     =   p_sexal.
+  wa_out-zz_status_al   =   p_sttal.
+  wa_out2-zz_cd         =   p_cd.
+  wa_out2-zz_ed         =   p_ed.
+  wa_out2-zz_email_al   =   p_em.
+  wa_out2-zz_tel_al     =   p_tel.
+
+  SELECT COUNT(*)
+    FROM zhr002_16 UP TO 1 ROWS
+    WHERE zz_cd EQ p_cd.
+  SELECT COUNT(*)
+    FROM zhr002_2_16 UP TO 1 ROWS
+    WHERE zz_cd EQ p_cdi.
+
+
+  IF sy-dbcnt GT 0.
+    PERFORM f_update.
+    PERFORM f_commit.
+
+  ELSE.
+    PERFORM f_insert.
+    PERFORM f_commit.
+  ENDIF.
+
+
+FORM f_insert.
+
+  INSERT: zhr002_16   FROM wa_out,
+          zhr002_2_16 FROM wa_out2.
+
+ENDFORM.
+
+
+FORM f_update .
+
+  MODIFY: zhr002_16   FROM wa_out,
+          zhr002_2_16 FROM wa_out2.
+ENDFORM.
+
+
+FORM f_commit .
+  IF sy-subrc EQ 0.
+    COMMIT WORK AND WAIT.
+
+    MESSAGE s208(00) WITH 'Operação Concluida' .
+
+  ELSE.
+    ROLLBACK WORK.
+
+    MESSAGE  s208(00) WITH 'Opereção deu ERRO!!' DISPLAY LIKE 'E'.
+
+
+  ENDIF.
+ENDFORM.
